@@ -12,8 +12,9 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Route("/workouts", func(r chi.Router) {
-			r.Get("/{id}", app.WorkoutHandler.HandleGetWorkoutByID)
+			r.Get("/{id}", app.WorkoutHandler.HandleGetWorkout)
 			r.Post("/", app.WorkoutHandler.HandleCreateWorkout)
+			r.Put("/{id}", app.WorkoutHandler.HandleUpdateWorkout)
 		})
 	})
 

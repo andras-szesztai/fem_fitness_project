@@ -34,8 +34,8 @@ func NewPostgresWorkoutStore(db *sql.DB) *PostgresWorkoutStore {
 
 type WorkoutStore interface {
 	CreateWorkout(workout *Workout) (*Workout, error)
-	GetWorkoutByID(id int) (*Workout, error)
-	// UpdateWorkout(workout *Workout) (*Workout, error)
+	GetWorkout(id int) (*Workout, error)
+	UpdateWorkout(workout *Workout) error
 }
 
 func (pg *PostgresWorkoutStore) CreateWorkout(workout *Workout) (*Workout, error) {
@@ -74,7 +74,7 @@ func (pg *PostgresWorkoutStore) CreateWorkout(workout *Workout) (*Workout, error
 	return workout, nil
 }
 
-func (pg *PostgresWorkoutStore) GetWorkoutByID(id int) (*Workout, error) {
+func (pg *PostgresWorkoutStore) GetWorkout(id int) (*Workout, error) {
 	workout := &Workout{}
 
 	query := `
@@ -113,4 +113,57 @@ func (pg *PostgresWorkoutStore) GetWorkoutByID(id int) (*Workout, error) {
 	}
 
 	return workout, nil
+}
+
+func (pg *PostgresWorkoutStore) UpdateWorkout(workout *Workout) error {
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query := `
+	UPDATE workouts
+	SET title = $1, description = $2, duration_minutes = $3, calories_burned = $4
+	WHERE id = $5
+	`
+	result, err := tx.Exec(query, workout.Title, workout.Description, workout.DurationMinutes, workout.CaloriesBurned, workout.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	query = `
+	DELETE FROM workout_entries
+	WHERE workout_id = $1
+	`
+	_, err = tx.Exec(query, workout.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range workout.Entries {
+		query := `
+		INSERT INTO workout_entries (workout_id, exercise_name, sets, reps, duration_seconds, weight, notes, order_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`
+		_, err = tx.Exec(query, workout.ID, entry.ExerciseName, entry.Sets, entry.Reps, entry.DurationSeconds, entry.Weight, entry.Notes, entry.OrderIndex)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
