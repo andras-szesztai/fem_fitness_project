@@ -27,7 +27,7 @@ func NewUserHandler(userStore store.UserStore, logger *log.Logger) *UserHandler 
 	return &UserHandler{userStore: userStore, logger: logger}
 }
 
-func (h *UserHandler) validateRegisterRequest(req *registerRequest) error {
+func (uh *UserHandler) validateRegisterRequest(req *registerRequest) error {
 	if req.Username == "" || req.Email == "" || req.Password == "" {
 		return errors.New("username, email, and password are required")
 	}
@@ -44,18 +44,18 @@ func (h *UserHandler) validateRegisterRequest(req *registerRequest) error {
 	return nil
 }
 
-func (h *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
+func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		h.logger.Printf("ERROR: decodeRegisterRequest: %s", err)
+		uh.logger.Printf("ERROR: decodeRegisterRequest: %s", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request body"})
 		return
 	}
 
-	err = h.validateRegisterRequest(&req)
+	err = uh.validateRegisterRequest(&req)
 	if err != nil {
-		h.logger.Printf("ERROR: validateRegisterRequest: %s", err)
+		uh.logger.Printf("ERROR: validateRegisterRequest: %s", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
 		return
 	}
@@ -71,18 +71,18 @@ func (h *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request)
 
 	err = user.PasswordHash.Set(req.Password)
 	if err != nil {
-		h.logger.Printf("ERROR: setPassword: %s", err)
+		uh.logger.Printf("ERROR: setPassword: %s", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
 		return
 	}
 
-	err = h.userStore.CreateUser(user)
+	err = uh.userStore.CreateUser(user)
 	if err != nil {
-		h.logger.Printf("ERROR: createUser: %s", err)
+		uh.logger.Printf("ERROR: createUser: %s", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
 		return
 	}
 
-	h.logger.Printf("INFO: user created: %s", user.Username)
+	uh.logger.Printf("INFO: user created: %s", user.Username)
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"message": "User created successfully"})
 }
