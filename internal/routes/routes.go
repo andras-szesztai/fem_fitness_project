@@ -17,6 +17,10 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 			r.Put("/{id}", app.WorkoutHandler.HandleUpdateWorkout)
 			r.Delete("/{id}", app.WorkoutHandler.HandleDeleteWorkout)
 		})
+
+		r.Route("/users", func(r chi.Router) {
+			r.Post("/register", app.UserHandler.HandleRegisterUser)
+		})
 	})
 
 	return router
