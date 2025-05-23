@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/andras-szesztai/fem_fitness_project/internal/middleware"
 	"github.com/andras-szesztai/fem_fitness_project/internal/store"
 	"github.com/andras-szesztai/fem_fitness_project/internal/utils"
 )
@@ -53,6 +54,15 @@ func (wh *WorkoutHandler) HandleCreateWorkout(w http.ResponseWriter, r *http.Req
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request body"})
 		return
 	}
+
+	currentUser := middleware.GetUser(r)
+	if currentUser.IsAnonymous() {
+		wh.logger.Printf("ERROR: getUser: %s", err)
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "You must be logged in to create a workout"})
+		return
+	}
+
+	workout.UserID = currentUser.ID
 
 	createdWorkout, err := wh.store.CreateWorkout(&workout)
 	if err != nil {
@@ -103,21 +113,36 @@ func (wh *WorkoutHandler) HandleUpdateWorkout(w http.ResponseWriter, r *http.Req
 	if updatedWorkoutRequest.Title != nil {
 		existingWorkout.Title = *updatedWorkoutRequest.Title
 	}
-
 	if updatedWorkoutRequest.Description != nil {
 		existingWorkout.Description = *updatedWorkoutRequest.Description
 	}
-
 	if updatedWorkoutRequest.DurationMinutes != nil {
 		existingWorkout.DurationMinutes = *updatedWorkoutRequest.DurationMinutes
 	}
-
 	if updatedWorkoutRequest.CaloriesBurned != nil {
 		existingWorkout.CaloriesBurned = *updatedWorkoutRequest.CaloriesBurned
 	}
-
 	if updatedWorkoutRequest.Entries != nil {
 		existingWorkout.Entries = updatedWorkoutRequest.Entries
+	}
+
+	currentUser := middleware.GetUser(r)
+	if currentUser.IsAnonymous() {
+		wh.logger.Printf("ERROR: getUser: %s", err)
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "You must be logged in to update a workout"})
+		return
+	}
+
+	ownerID, err := wh.store.GetWorkoutOwner(workoutID)
+	if err != nil {
+		wh.logger.Printf("ERROR: getWorkoutOwner: %s", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Failed to get workout owner"})
+		return
+	}
+	if ownerID != currentUser.ID {
+		wh.logger.Printf("ERROR: getWorkoutOwner: %s", err)
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "You are not the owner of this workout"})
+		return
 	}
 
 	err = wh.store.UpdateWorkout(existingWorkout)
@@ -136,6 +161,25 @@ func (wh *WorkoutHandler) HandleDeleteWorkout(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		wh.logger.Printf("ERROR: readIDParam: %s", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid workout ID"})
+		return
+	}
+
+	currentUser := middleware.GetUser(r)
+	if currentUser.IsAnonymous() {
+		wh.logger.Printf("ERROR: getUser: %s", err)
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "You must be logged in to delete a workout"})
+		return
+	}
+
+	ownerID, err := wh.store.GetWorkoutOwner(workoutID)
+	if err != nil {
+		wh.logger.Printf("ERROR: getWorkoutOwner: %s", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Failed to get workout owner"})
+		return
+	}
+	if ownerID != currentUser.ID {
+		wh.logger.Printf("ERROR: getWorkoutOwner: %s", err)
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "You are not the owner of this workout"})
 		return
 	}
 
