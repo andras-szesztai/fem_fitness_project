@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/andras-szesztai/fem_fitness_project/internal/api"
+	"github.com/andras-szesztai/fem_fitness_project/internal/middleware"
 	"github.com/andras-szesztai/fem_fitness_project/internal/store"
 	"github.com/andras-szesztai/fem_fitness_project/migrations"
 )
@@ -16,6 +17,7 @@ type Application struct {
 	Logger         *log.Logger
 	WorkoutHandler *api.WorkoutHandler
 	UserHandler    *api.UserHandler
+	Middleware     *middleware.UserMiddleware
 	TokenHandler   *api.TokenHandler
 	DB             *sql.DB
 }
@@ -42,11 +44,14 @@ func NewApplication() (*Application, error) {
 	tokenStore := store.NewPostgresTokenStore(pgDB)
 	tokenHandler := api.NewTokenHandler(tokenStore, userStore, logger)
 
+	userMiddleware := middleware.NewUserMiddleware(userStore)
+
 	app := &Application{
 		Logger:         logger,
 		WorkoutHandler: workoutHandler,
 		UserHandler:    userHandler,
 		TokenHandler:   tokenHandler,
+		Middleware:     userMiddleware,
 		DB:             pgDB,
 	}
 
